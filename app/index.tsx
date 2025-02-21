@@ -1,33 +1,47 @@
 import { useEffect } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
-import Animated, { 
-  withSpring, 
-  useAnimatedStyle, 
-  useSharedValue 
+import Animated, {
+  withSpring,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withDelay
 } from 'react-native-reanimated';
 
 export default function SplashScreen() {
   const scale = useSharedValue(0.3);
-  
+  const opacity = useSharedValue(0);
+  const developerOpacity = useSharedValue(0);
+
   useEffect(() => {
     scale.value = withSpring(1, { damping: 20 });
+    opacity.value = withSpring(1, { damping: 20 });
+    developerOpacity.value = withDelay(500, withSequence(
+      withSpring(1, { damping: 20 })
+    ));
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
+  const logoStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const developerStyle = useAnimatedStyle(() => ({
+    opacity: developerOpacity.value,
+  }));
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.logoContainer, animatedStyle]}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?q=80&w=200&auto=format&fit=crop' }}
-          style={styles.logo}
-        />
+      <Animated.View style={[styles.content, logoStyle]}>
+        <Text style={styles.title}>MediCare</Text>
+        <Text style={styles.subtitle}>Your Health, Our Priority</Text>
       </Animated.View>
+
+      <Animated.Text style={[styles.developer, developerStyle]}>
+        Developed by Sameera
+      </Animated.Text>
+
       <Redirect href="/(tabs)" />
     </View>
   );
@@ -40,20 +54,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoContainer: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+  content: {
+    alignItems: 'center',
   },
-  logo: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  title: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#0066cc',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 8,
+  },
+  developer: {
+    position: 'absolute',
+    bottom: 40,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });
