@@ -1,39 +1,97 @@
-import { View, Text, StyleSheet, Image, FlatList, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Image, FlatList, Pressable, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { bookAppointment } from '../../store/slices/appointmentsSlice';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const categories = [
+  'Cardiology',
+  'Neurology',
+  'Pediatrics',
+  'Orthopedics',
+  'Dermatology',
+  'General Medicine'
+];
 
 export default function HospitalScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
-  
-  const hospital = useSelector((state: RootState) => 
+
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [bookingData, setBookingData] = useState({
+    name: '',
+    email: '',
+    date: '',
+    time: '',
+  });
+  const [showForm, setShowForm] = useState(false);
+
+  const hospital = useSelector((state: RootState) =>
     state.hospitals.hospitals.find(h => h.id === id)
   );
 
   if (!hospital) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Text>Hospital not found</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  const handleBookAppointment = (doctorId: string, time: string) => {
-    dispatch(bookAppointment({
-      hospitalId: hospital.id,
-      doctorId,
-      patientName: 'John Doe', // In a real app, this would come from user profile
-      date: new Date().toISOString().split('T')[0],
-      time,
-    }));
-    router.push('/appointments');
+  const filteredDoctors = hospital.doctors.filter(
+    doctor => !selectedCategory || doctor.specialization === selectedCategory
+  );
+
+  const handleBooking = async () => {
+    try {
+      const appointmentData = {
+        userId: 'U49979', // This should come from auth state in real app
+        docId: selectedDoctor.id,
+        hospitalId: hospital.id,
+        date: bookingData.date,
+        time: bookingData.time,
+        fee: 1500, // This should be dynamic based on doctor's fee
+      };
+
+      await bookAppointment(appointmentData);
+      router.push('/appointments');
+    } catch (error) {
+      console.error('Booking failed:', error);
+    }
   };
 
+  const renderCategory = ({ item }) => (
+    <Pressable
+      style={[
+        styles.categoryButton,
+        selectedCategory === item && styles.selectedCategory
+      ]}
+      onPress={() => setSelectedCategory(item)}
+    >
+      <Text style={[
+        styles.categoryText,
+        selectedCategory === item && styles.selectedCategoryText
+      ]}>
+        {item}
+      </Text>
+    </Pressable>
+  );
+
   const renderDoctor = ({ item: doctor }) => (
-    <View style={styles.doctorCard}>
+    <Pressable
+      style={[
+        styles.doctorCard,
+        selectedDoctor?.id === doctor.id && styles.selectedDoctorCard
+      ]}
+      onPress={() => {
+        setSelectedDoctor(doctor);
+        setShowForm(true);
+      }}
+    >
       <Image source={{ uri: doctor.image }} style={styles.doctorImage} />
       <View style={styles.doctorInfo}>
         <Text style={styles.doctorName}>{doctor.name}</Text>
@@ -41,37 +99,78 @@ export default function HospitalScreen() {
         <Text style={styles.doctorStats}>
           {doctor.experience} years • ⭐ {doctor.rating}
         </Text>
-        <View style={styles.slots}>
-          {doctor.availableSlots.map((slot) => (
-            <Pressable
-              key={slot}
-              style={styles.slotButton}
-              onPress={() => handleBookAppointment(doctor.id, slot)}
-            >
-              <Text style={styles.slotText}>{slot}</Text>
-            </Pressable>
-          ))}
-        </View>
       </View>
-    </View>
+    </Pressable>
   );
 
   return (
-    <View style={styles.container}>
-      <Image source={{ uri: hospital.image }} style={styles.hospitalImage} />
-      <View style={styles.content}>
-        <Text style={styles.hospitalName}>{hospital.name}</Text>
-        <Text style={styles.hospitalAddress}>{hospital.address}</Text>
-        <Text style={styles.sectionTitle}>Available Doctors</Text>
-        <FlatList
-          data={hospital.doctors}
-          renderItem={renderDoctor}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.doctorsList}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        <Image source={{ uri: hospital.image }} style={styles.hospitalImage} />
+        <View style={styles.content}>
+          <Text style={styles.hospitalName}>{hospital.name}</Text>
+          <Text style={styles.hospitalAddress}>{hospital.address}</Text>
+
+          <Text style={styles.sectionTitle}>Specializations</Text>
+          <FlatList
+            data={categories}
+            renderItem={renderCategory}
+            keyExtractor={(item) => item}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryList}
+          />
+
+          <Text style={styles.sectionTitle}>Available Doctors</Text>
+          <FlatList
+            data={filteredDoctors}
+            renderItem={renderDoctor}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+          />
+
+          {showForm && selectedDoctor && (
+            <View style={styles.bookingForm}>
+              <Text style={styles.formTitle}>Book Appointment</Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                value={bookingData.name}
+                onChangeText={(text) => setBookingData({ ...bookingData, name: text })}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={bookingData.email}
+                onChangeText={(text) => setBookingData({ ...bookingData, email: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Date (YYYY-MM-DD)"
+                value={bookingData.date}
+                onChangeText={(text) => setBookingData({ ...bookingData, date: text })}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Time (HH:MM AM/PM)"
+                value={bookingData.time}
+                onChangeText={(text) => setBookingData({ ...bookingData, time: text })}
+              />
+
+              <Pressable style={styles.bookButton} onPress={handleBooking}>
+                <Text style={styles.bookButtonText}>Book Appointment</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -79,6 +178,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  scrollView: {
+    flex: 1,
   },
   hospitalImage: {
     width: '100%',
@@ -104,10 +206,28 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1a1a1a',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  categoryList: {
     marginBottom: 16,
   },
-  doctorsList: {
-    paddingBottom: 16,
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+  },
+  selectedCategory: {
+    backgroundColor: '#0066cc',
+  },
+  categoryText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedCategoryText: {
+    color: '#fff',
   },
   doctorCard: {
     backgroundColor: '#fff',
@@ -120,6 +240,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+  },
+  selectedDoctorCard: {
+    borderColor: '#0066cc',
+    borderWidth: 2,
   },
   doctorImage: {
     width: 80,
@@ -145,21 +269,36 @@ const styles = StyleSheet.create({
     color: '#0066cc',
     marginTop: 4,
   },
-  slots: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  bookingForm: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 16,
+  },
+  input: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  bookButton: {
+    backgroundColor: '#0066cc',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
     marginTop: 8,
   },
-  slotButton: {
-    backgroundColor: '#e6f0ff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginTop: 8,
-  },
-  slotText: {
-    color: '#0066cc',
-    fontSize: 14,
+  bookButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

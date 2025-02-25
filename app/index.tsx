@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { router } from 'expo-router';
 import Animated, {
   useAnimatedStyle,
@@ -8,8 +8,9 @@ import Animated, {
   withSequence,
   withDelay,
   withTiming,
-  Easing
 } from 'react-native-reanimated';
+// @ts-ignore
+import logo from '../assets/images/logo.png';
 
 export default function BeginScreen() {
   const [isStarting, setIsStarting] = useState(false);
@@ -66,9 +67,7 @@ export default function BeginScreen() {
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.logoContainer, logoStyle]}>
-        <View style={styles.logo}>
-          <Text style={styles.logoSymbol}>+</Text>
-        </View>
+        <Image source={logo} style={styles.logo} resizeMode="contain" />
         <Text style={styles.title}>MediCare</Text>
         <Text style={styles.subtitle}>Your Health Partner</Text>
       </Animated.View>
@@ -101,23 +100,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#0066cc',
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 120,
+    height: 120,
     marginBottom: 24,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  logoSymbol: {
-    fontSize: 60,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   title: {
     fontSize: 42,
