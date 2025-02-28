@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image } from 'react-native';
 import { useEffect, useState } from 'react';
 import { getAppointments } from '@/utils/api';
 
@@ -20,19 +20,26 @@ export default function AppointmentsScreen() {
 
   // Render each appointment card
   const renderAppointment = ({ item }) => {
-    const { userId, docId, hospitalId, date, time, status } = item;
+    const { userId, docId, hospitalId, date, time, status, fee } = item;
 
     return (
       <View style={styles.appointmentCard}>
         <View style={styles.header}>
-          <Text style={styles.hospitalName}>{hospitalId.name}</Text>
+          <Image source={{ uri: docId.image }} style={styles.doctorImage} />
+          <View style={styles.doctorInfo}>
+            <Text style={styles.doctorName}>{docId.name}</Text>
+            <Text style={styles.specialty}>{docId.specialty}</Text>
+          </View>
           <Text style={styles.status}>{status}</Text>
         </View>
-        <Text style={styles.doctorName}>{docId.name}</Text>
-        <Text style={styles.specialty}>{docId.specialty}</Text>
+        <View style={styles.hospitalInfo}>
+          <Text style={styles.hospitalName}>{hospitalId.name}</Text>
+          <Text style={styles.hospitalLocation}>{hospitalId.location}</Text>
+        </View>
         <View style={styles.timeContainer}>
           <Text style={styles.date}>{new Date(date).toLocaleDateString()}</Text>
           <Text style={styles.time}>{time}</Text>
+          <Text style={styles.fee}>LKR {fee}</Text>
         </View>
       </View>
     );
@@ -75,7 +82,7 @@ const styles = StyleSheet.create({
   },
   appointmentCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     elevation: 3,
@@ -86,20 +93,34 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  hospitalName: {
-    fontSize: 16,
+  doctorImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  doctorInfo: {
+    flex: 1,
+  },
+  doctorName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  specialty: {
+    fontSize: 14,
     color: '#666',
   },
   status: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    textTransform: 'capitalize',
   },
   pending: {
     backgroundColor: '#fff3cd',
@@ -117,20 +138,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8d7da',
     color: '#721c24',
   },
-  doctorName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+  hospitalInfo: {
+    marginBottom: 12,
   },
-  specialty: {
+  hospitalName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  hospitalLocation: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
   timeContainer: {
     flexDirection: 'row',
-    marginTop: 12,
     alignItems: 'center',
+    marginTop: 8,
   },
   date: {
     fontSize: 14,
@@ -140,6 +163,12 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 14,
     color: '#0066cc',
+  },
+  fee: {
+    fontSize: 14,
+    color: '#6e4303',
+    position: 'absolute',
+    right: 0,
   },
   emptyState: {
     flex: 1,

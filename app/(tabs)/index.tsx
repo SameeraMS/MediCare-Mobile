@@ -1,20 +1,51 @@
 import { View, Text, StyleSheet, FlatList, Pressable, Image } from 'react-native';
 import { Link } from 'expo-router';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { useEffect, useState } from 'react';
+import { getDocHospitals, getDoctors, getHospitals } from '@/utils/api';
 
 export default function HomeScreen() {
-  const hospitals = useSelector((state: RootState) => state.hospitals.hospitals);
+  const [hospitals, setHospitals] = useState([]);
+
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const hospitalsData = await getHospitals();
+        const docHosData = await getDocHospitals();
+        const doctorsData = await getDoctors();
+
+        // Count doctors per hospital
+        const hospitalDoctorCounts = docHosData.reduce((acc, entry) => {
+          const hospitalId = entry.hospitalId._id;
+          if (!acc[hospitalId]) {
+            acc[hospitalId] = 0;
+          }
+          acc[hospitalId] += 1;
+          return acc;
+        }, {});
+
+        // Merge hospital data with doctor count
+        const updatedHospitals = hospitalsData.map((hospital) => ({
+          ...hospital,
+          doctorCount: hospitalDoctorCounts[hospital._id] || 0,
+        }));
+
+        setHospitals(updatedHospitals);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+    fetchHospitals();
+  }, []);
 
   const renderHospital = ({ item }) => (
-    <Link href={`/hospital/${item.id}`} asChild>
+    <Link href={`/hospital/${item._id}`} asChild>
       <Pressable style={styles.hospitalCard}>
         <Image source={{ uri: item.image }} style={styles.hospitalImage} />
         <View style={styles.hospitalInfo}>
           <Text style={styles.hospitalName}>{item.name}</Text>
-          <Text style={styles.hospitalAddress}>{item.address}</Text>
+          <Text style={styles.hospitalAddress}>{item.location}</Text>
           <View style={styles.statsContainer}>
-            <Text style={styles.statsText}>{item.doctorsCount} Doctors</Text>
+            <Text style={styles.statsText}>{item.doctorCount} Doctors</Text>
             <Text style={styles.statsText}>⭐ {item.rating}</Text>
           </View>
         </View>
@@ -31,7 +62,7 @@ export default function HomeScreen() {
       <FlatList
         data={hospitals}
         renderItem={renderHospital}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       />

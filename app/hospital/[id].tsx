@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, Pressable, TextInput, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store';
-import { bookAppointment } from '../../store/slices/appointmentsSlice';
+import { useDispatch } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getHospitals, getDocHospitals, getDoctors, bookAppointment } from '@/utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+
 
 const categories = [
   'Cardiology',
@@ -29,10 +31,40 @@ export default function HospitalScreen() {
     time: '',
   });
   const [showForm, setShowForm] = useState(false);
+  const [hospital, setHospital] = useState(null);
+  const [docHospital, setDocHospital] = useState([]);
+  const [doctors, setDoctors] = useState([]);
 
-  const hospital = useSelector((state: RootState) =>
-    state.hospitals.hospitals.find(h => h.id === id)
-  );
+  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisibility] = useState(false);
+
+  const handleDateConfirm = (date) => {
+    setBookingData({ ...bookingData, date: date.toISOString().split('T')[0] });
+    setDatePickerVisibility(false);
+  };
+
+  const handleTimeConfirm = (time) => {
+    const formattedTime = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setBookingData({ ...bookingData, time: formattedTime });
+    setTimePickerVisibility(false);
+  };
+
+  useEffect(() => {
+    const fetchHospitalData = async () => {
+      try {
+        const hospitalsData = await getHospitals();
+        const docHospital = await getDocHospitals();
+        const doctors = await getDoctors();
+        const hospitalDetails = hospitalsData.find(hospital => hospital._id === id);
+        setHospital(hospitalDetails);
+        setDocHospital(docHospital.filter(doc => doc.hospitalId._id === id)); // Filter doctors for the selected hospital
+        setDoctors(doctors); // Set available doctors list
+      } catch (error) {
+        console.error('Failed to fetch hospital data:', error);
+      }
+    };
+    fetchHospitalData();
+  }, [id]);
 
   if (!hospital) {
     return (
@@ -42,66 +74,31 @@ export default function HospitalScreen() {
     );
   }
 
-  const filteredDoctors = hospital.doctors.filter(
-    doctor => !selectedCategory || doctor.specialization === selectedCategory
+  const filteredDoctors = docHospital.filter(
+    (docHospitalEntry) =>
+      !selectedCategory || docHospitalEntry.category === selectedCategory
   );
 
   const handleBooking = async () => {
-    try {
-      const appointmentData = {
-        userId: 'U49979', // This should come from auth state in real app
-        docId: selectedDoctor.id,
-        hospitalId: hospital.id,
-        date: bookingData.date,
-        time: bookingData.time,
-        fee: 1500, // This should be dynamic based on doctor's fee
-      };
-
-      await bookAppointment(appointmentData);
-      router.push('/appointments');
-    } catch (error) {
-      console.error('Booking failed:', error);
+    if (!selectedDoctor || !bookingData.name || !bookingData.email || !bookingData.date || !bookingData.time) {
+      alert('Please fill in all fields before booking.');
+      return;
     }
+
+    const appointmentData = {
+      userId: await AsyncStorage.getItem('userId'),
+      docId: selectedDoctor._id,
+      hospitalId: hospital._id,
+      date: bookingData.date,
+      time: bookingData.time,
+      fee: selectedDoctor.fee || 1500, // Ensure dynamic fee handling
+    };
+
+    console.log('Booking Data:', appointmentData);
+
+    await bookAppointment(appointmentData);
+    router.push('/appointments');
   };
-
-  const renderCategory = ({ item }) => (
-    <Pressable
-      style={[
-        styles.categoryButton,
-        selectedCategory === item && styles.selectedCategory
-      ]}
-      onPress={() => setSelectedCategory(item)}
-    >
-      <Text style={[
-        styles.categoryText,
-        selectedCategory === item && styles.selectedCategoryText
-      ]}>
-        {item}
-      </Text>
-    </Pressable>
-  );
-
-  const renderDoctor = ({ item: doctor }) => (
-    <Pressable
-      style={[
-        styles.doctorCard,
-        selectedDoctor?.id === doctor.id && styles.selectedDoctorCard
-      ]}
-      onPress={() => {
-        setSelectedDoctor(doctor);
-        setShowForm(true);
-      }}
-    >
-      <Image source={{ uri: doctor.image }} style={styles.doctorImage} />
-      <View style={styles.doctorInfo}>
-        <Text style={styles.doctorName}>{doctor.name}</Text>
-        <Text style={styles.doctorSpecialty}>{doctor.specialization}</Text>
-        <Text style={styles.doctorStats}>
-          {doctor.experience} years • ⭐ {doctor.rating}
-        </Text>
-      </View>
-    </Pressable>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,37 +106,59 @@ export default function HospitalScreen() {
         <Image source={{ uri: hospital.image }} style={styles.hospitalImage} />
         <View style={styles.content}>
           <Text style={styles.hospitalName}>{hospital.name}</Text>
-          <Text style={styles.hospitalAddress}>{hospital.address}</Text>
+          <Text style={styles.hospitalAddress}>{hospital.location}</Text>
 
           <Text style={styles.sectionTitle}>Specializations</Text>
           <FlatList
             data={categories}
-            renderItem={renderCategory}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.categoryButton, selectedCategory === item && styles.selectedCategory]}
+                onPress={() => setSelectedCategory(item)}
+              >
+                <Text style={[styles.categoryText, selectedCategory === item && styles.selectedCategoryText]}>
+                  {item}
+                </Text>
+              </Pressable>
+            )}
             keyExtractor={(item) => item}
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.categoryList}
           />
 
           <Text style={styles.sectionTitle}>Available Doctors</Text>
           <FlatList
             data={filteredDoctors}
-            renderItem={renderDoctor}
-            keyExtractor={(item) => item.id}
+            renderItem={({ item: docHospitalEntry }) => (
+              <Pressable
+                style={[styles.doctorCard, selectedDoctor?._id === docHospitalEntry.docId._id && styles.selectedDoctorCard]}
+                onPress={() => {
+                  setSelectedDoctor(docHospitalEntry.docId);
+                  setShowForm(true);
+                }}
+              >
+                <Image source={{ uri: docHospitalEntry.docId.image }} style={styles.doctorImage} />
+                <View style={styles.doctorInfo}>
+                  <Text style={styles.doctorName}>{docHospitalEntry.docId.name}</Text>
+                  <Text style={styles.doctorSpecialty}>{docHospitalEntry.category}</Text>
+                  <Text style={styles.doctorStats}>{docHospitalEntry.docId.experience} years • ⭐ {docHospitalEntry.docId.rating}</Text>
+                  <Text style={styles.doctorSpecialty}>LKR {docHospitalEntry.fee}</Text>
+                </View>
+              </Pressable>
+            )}
+            keyExtractor={(item) => item._id}
             scrollEnabled={false}
           />
 
           {showForm && selectedDoctor && (
             <View style={styles.bookingForm}>
               <Text style={styles.formTitle}>Book Appointment</Text>
-
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
                 value={bookingData.name}
                 onChangeText={(text) => setBookingData({ ...bookingData, name: text })}
               />
-
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -148,21 +167,37 @@ export default function HospitalScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              <Pressable onPress={() => setDatePickerVisibility(true)}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Date (YYYY-MM-DD)"
+                  value={bookingData.date}
+                  editable={false}
+                />
+              </Pressable>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Date (YYYY-MM-DD)"
-                value={bookingData.date}
-                onChangeText={(text) => setBookingData({ ...bookingData, date: text })}
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleDateConfirm}
+                onCancel={() => setDatePickerVisibility(false)}
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Time (HH:MM AM/PM)"
-                value={bookingData.time}
-                onChangeText={(text) => setBookingData({ ...bookingData, time: text })}
-              />
+              <Pressable onPress={() => setTimePickerVisibility(true)}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Time (HH:MM AM/PM)"
+                  value={bookingData.time}
+                  editable={false}
+                />
+              </Pressable>
 
+              <DateTimePickerModal
+                isVisible={isTimePickerVisible}
+                mode="time"
+                onConfirm={handleTimeConfirm}
+                onCancel={() => setTimePickerVisibility(false)}
+              />
               <Pressable style={styles.bookButton} onPress={handleBooking}>
                 <Text style={styles.bookButtonText}>Book Appointment</Text>
               </Pressable>
@@ -208,9 +243,6 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginTop: 16,
     marginBottom: 12,
-  },
-  categoryList: {
-    marginBottom: 16,
   },
   categoryButton: {
     paddingHorizontal: 16,

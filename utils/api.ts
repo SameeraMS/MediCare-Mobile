@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_URL = 'http://localhost:3000/api';
 
@@ -40,6 +41,11 @@ export const getHospitals = async () => {
   return response.data;
 };
 
+export const getDocHospitals = async () => {
+  const response = await axios.get(`${BASE_URL}/dochospitals`);
+  return response.data;
+};
+
 export const getDoctors = async () => {
   const response = await axios.get(`${BASE_URL}/doctors`);
   return response.data;
@@ -53,12 +59,17 @@ export const bookAppointment = async (appointmentData: {
   time: string;
   fee: number;
 }) => {
-  const response = await axios.post(`${BASE_URL}/appointments`, appointmentData);
+  const token = await AsyncStorage.getItem('token');
+  const response = await axios.post(`${BASE_URL}/appointments`, appointmentData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   return response.data;
 };
 
 export const getAppointments = async () => {
-  const userId = localStorage.getItem('userId');
+  const userId = await AsyncStorage.getItem('userId');
   const response = await axios.get(`${BASE_URL}/appointments/user/${userId}`);
   return response.data;
 }

@@ -5,6 +5,7 @@ import { RootState } from '../../store';
 import { setUser, setToken, setError, logout } from '../../store/slices/authSlice';
 import * as SecureStore from 'expo-secure-store';
 import { login, register } from '../../utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen() {
   const dispatch = useDispatch();
@@ -19,9 +20,9 @@ export default function ProfileScreen() {
     try {
       if (isLogin) {
         const { accessToken, user } = await login(email, password);
-        localStorage.setItem('token', accessToken);
-        localStorage.setItem('userId', user._id);
-        localStorage.setItem('email', user.email);
+        await AsyncStorage.setItem('token', accessToken);
+        await AsyncStorage.setItem('userId', user._id);
+        await AsyncStorage.setItem('email', user.email);
         dispatch(setToken(accessToken));
         dispatch(setUser(user));
       } else {
@@ -38,6 +39,10 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await SecureStore.deleteItemAsync('token');
     dispatch(logout());
+  };
+
+  const handleHistory = async () => {
+    navigator('appointments');
   };
 
   if (!user) {
@@ -130,7 +135,7 @@ export default function ProfileScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Medical History</Text>
-        <Pressable style={styles.historyButton}>
+        <Pressable style={styles.historyButton} onPress={handleHistory}>
           <Text style={styles.historyButtonText}>View Medical Records</Text>
         </Pressable>
       </View>
@@ -276,6 +281,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     backgroundColor: '#dc3545',
+    marginBottom: 100,
   },
   logoutText: {
     color: '#fff',
