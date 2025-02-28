@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, TextInput, ScrollView } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { setUser, setToken, setError, logout } from '../../store/slices/authSlice';
-import * as SecureStore from 'expo-secure-store';
 import { login, register } from '../../utils/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const dispatch = useDispatch();
@@ -16,6 +16,20 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
+  const router = useRouter();
+
+  // @ts-ignore
+  useEffect(() => {
+    checkUser();
+  }, [dispatch]);
+
+  const checkUser = async () => {
+    const userId = await AsyncStorage.getItem('userId');
+    const email = await AsyncStorage.getItem('email');
+    const name = await AsyncStorage.getItem('name');
+    userId ? dispatch(setUser({ userId, email, name })) : null;
+  }
+
   const handleAuth = async () => {
     try {
       if (isLogin) {
@@ -23,6 +37,7 @@ export default function ProfileScreen() {
         await AsyncStorage.setItem('token', accessToken);
         await AsyncStorage.setItem('userId', user._id);
         await AsyncStorage.setItem('email', user.email);
+        await AsyncStorage.setItem('name', user.name);
         dispatch(setToken(accessToken));
         dispatch(setUser(user));
       } else {
@@ -37,12 +52,15 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    await SecureStore.deleteItemAsync('token');
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('userId');
+    await AsyncStorage.removeItem('email');
+    await AsyncStorage.removeItem('name');
     dispatch(logout());
   };
 
   const handleHistory = async () => {
-    navigator('appointments');
+    router.push('/appointments');
   };
 
   if (!user) {
