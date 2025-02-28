@@ -1,31 +1,38 @@
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { useEffect, useState } from 'react';
+import { getAppointments } from '@/utils/api';
 
 export default function AppointmentsScreen() {
-  const appointments = useSelector((state: RootState) => state.appointments.appointments);
-  const hospitals = useSelector((state: RootState) => state.hospitals.hospitals);
+  const [appointments, setAppointments] = useState([]);
 
-  const getHospitalAndDoctor = (hospitalId: string, doctorId: string) => {
-    const hospital = hospitals.find(h => h.id === hospitalId);
-    const doctor = hospital?.doctors.find(d => d.id === doctorId);
-    return { hospital, doctor };
-  };
+  // Fetch appointments when the component mounts
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const data = await getAppointments();
+        setAppointments(data);
+      } catch (error) {
+        console.error('Failed to fetch appointments:', error);
+      }
+    };
+    fetchAppointments();
+  }, []); // Empty dependency array to run only once on mount
 
+  // Render each appointment card
   const renderAppointment = ({ item }) => {
-    const { hospital, doctor } = getHospitalAndDoctor(item.hospitalId, item.doctorId);
-    
+    const { userId, docId, hospitalId, date, time, status } = item;
+
     return (
       <View style={styles.appointmentCard}>
         <View style={styles.header}>
-          <Text style={styles.hospitalName}>{hospital?.name}</Text>
-          <Text style={[styles.status, styles[item.status]]}>{item.status}</Text>
+          <Text style={styles.hospitalName}>{hospitalId.name}</Text>
+          <Text style={styles.status}>{status}</Text>
         </View>
-        <Text style={styles.doctorName}>{doctor?.name}</Text>
-        <Text style={styles.specialty}>{doctor?.specialization}</Text>
+        <Text style={styles.doctorName}>{docId.name}</Text>
+        <Text style={styles.specialty}>{docId.specialty}</Text>
         <View style={styles.timeContainer}>
-          <Text style={styles.date}>{item.date}</Text>
-          <Text style={styles.time}>{item.time}</Text>
+          <Text style={styles.date}>{new Date(date).toLocaleDateString()}</Text>
+          <Text style={styles.time}>{time}</Text>
         </View>
       </View>
     );
@@ -42,7 +49,7 @@ export default function AppointmentsScreen() {
         <FlatList
           data={appointments}
           renderItem={renderAppointment}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />

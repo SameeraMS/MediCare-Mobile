@@ -13,21 +13,24 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
 
   const handleAuth = async () => {
     try {
       if (isLogin) {
-        const { user: userData, token } = await login(email, password);
-        await SecureStore.setItemAsync('token', token);
-        dispatch(setToken(token));
-        dispatch(setUser(userData));
+        const { accessToken, user } = await login(email, password);
+        localStorage.setItem('token', accessToken);
+        localStorage.setItem('userId', user._id);
+        localStorage.setItem('email', user.email);
+        dispatch(setToken(accessToken));
+        dispatch(setUser(user));
       } else {
-        const { user: userData, token } = await register(email, password, name);
-        await SecureStore.setItemAsync('token', token);
-        dispatch(setToken(token));
-        dispatch(setUser(userData));
+        // @ts-ignore
+        const res = await register(name, email, phone, password);
+        setIsLogin(true)
       }
     } catch (err) {
+      // @ts-ignore
       dispatch(setError(err.message));
     }
   };
@@ -62,6 +65,15 @@ export default function ProfileScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
           />
+
+          {!isLogin && (
+            <TextInput
+              style={styles.input}
+              placeholder="Phone"
+              value={phone}
+              onChangeText={setPhone}
+            />
+          )}
           
           <TextInput
             style={styles.input}
@@ -91,7 +103,7 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop' }}
+          source={{ uri: 'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvdjkzNy1hZXctMTY1LWtsaGN3ZWNtLmpwZw.jpg' }}
           style={styles.avatar}
         />
         <Text style={styles.name}>{user.name}</Text>
@@ -103,7 +115,7 @@ export default function ProfileScreen() {
         <View style={styles.infoContainer}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>+1 234 567 890</Text>
+            <Text style={styles.infoValue}>{user.phone}</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Date of Birth</Text>

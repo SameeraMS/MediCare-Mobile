@@ -36,6 +36,7 @@ const appointmentsSlice = createSlice({
         appointment.status = action.payload.status;
       }
     },
+
   },
 });
 
